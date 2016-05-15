@@ -30,8 +30,9 @@ import com.google.gson.stream.JsonWriter;
  *	String json = gson.toJson(sit);
  *	Iterable&lt;String&gt; nsit = gson.fromJson(json, aIterableType);
  *</pre>
- * The correctness of writing behavior replys on the writeMethodName parameterand and the anonymous 
- * {@link com.google.gson.reflect.TypeToken TypeToken} class 
+ * The correctness of writing behavior replys on the writeMethodName parameter and the anonymous 
+ * {@link com.google.gson.reflect.TypeToken TypeToken} class. Besides, the element class should
+ * have a default(nullary) constructor. 
  * @author ianate
  * 
  */
@@ -66,8 +67,7 @@ public class IterableTypeAdapterFactory implements TypeAdapterFactory{
 		Type elementType = null;
 		if(Iterable.class.equals(rawType)){
 			Type type = typeToken.getType();
-			if(type instanceof Class){//Class cannot hold parameter as ParameterizedType do
-				throw new RuntimeException("Destinated Type parameter must be an anonymous "
+			if(type instanceof Class){//Class cannot hold parameter(type of the element class) as ParameterizedType do
 						+ "com.google.gson.reflect.TypeToken class to avoid runtime erasure ");
 			}
 			elementType = 
@@ -112,18 +112,18 @@ public class IterableTypeAdapterFactory implements TypeAdapterFactory{
 						}
 						return constructor.newInstance();
 					} catch (InstantiationException e) {
-						throw new RuntimeException();
+						throw new RuntimeException(e);//wrapped. occurs when the class is unable to instantiate
 					} catch (IllegalAccessException e) {
-						throw new RuntimeException();
+						throw new RuntimeException(e);//should never occurs
 					} catch (IllegalArgumentException e) {
-						throw new RuntimeException();
+						throw new RuntimeException(e);//should never occurs as the the constructor is default constructor
 					} catch (InvocationTargetException e) {
-						throw new RuntimeException();
+						throw new RuntimeException(e);//wrapped.throws when the constructor throws an exception
 					} catch (NoSuchMethodException e) {
 						throw new RuntimeException(iterableClass.getSimpleName() 
-								+ "has no default constructor");
+								+ "has no default constructor");//a default constructor is required to create element instances
 					} catch (SecurityException e) {
-						throw new RuntimeException();
+						throw new RuntimeException(e);//occurs when using illegal class loader
 					}
 				}
 			};
@@ -157,11 +157,11 @@ public class IterableTypeAdapterFactory implements TypeAdapterFactory{
 				try {
 					method.invoke(iterables, element);
 				} catch (IllegalAccessException e) {
-					throw new RuntimeException();
+					throw new RuntimeException(e);//accessible method. won't occur
 				} catch (IllegalArgumentException e) {
-					throw new RuntimeException();
+					throw new RuntimeException(e);//same as above
 				} catch (InvocationTargetException e) {
-					throw new RuntimeException();
+					throw new RuntimeException(e);//throws when the method itself throws an exception
 				}
 			}
 			in.endArray();
