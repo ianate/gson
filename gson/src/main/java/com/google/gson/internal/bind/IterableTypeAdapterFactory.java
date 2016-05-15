@@ -68,6 +68,7 @@ public class IterableTypeAdapterFactory implements TypeAdapterFactory{
 		if(Iterable.class.equals(rawType)){
 			Type type = typeToken.getType();
 			if(type instanceof Class){//Class cannot hold parameter(type of the element class) as ParameterizedType do
+				throw new RuntimeException("destinated Type parameter must be an anonymous "
 						+ "com.google.gson.reflect.TypeToken class to avoid runtime erasure ");
 			}
 			elementType = 
