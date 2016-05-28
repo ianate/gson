@@ -46,7 +46,7 @@ import java.util.Map;
  */
 public class TypeToken<T> {
   final Class<? super T> rawType;
-  final Type type;
+  final Type type;//T
   final int hashCode;
 
   /**

@@ -6,6 +6,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.lang.reflect.TypeVariable;
 
 import com.google.gson.Gson;
 import com.google.gson.TypeAdapter;
@@ -74,7 +75,18 @@ public class IterableTypeAdapterFactory implements TypeAdapterFactory{
 			elementType = 
 					((ParameterizedType) type).getActualTypeArguments()[0];
 		}else{
-			elementType = ((ParameterizedType) rawType.getGenericSuperclass()).getActualTypeArguments()[0];
+			if(!Object.class.equals(rawType.getGenericSuperclass())){
+				elementType = ((ParameterizedType) rawType.getGenericSuperclass()).getActualTypeArguments()[0];
+			}else{//direct Iterable implement
+				Type[] interfaces = rawType.getGenericInterfaces();
+				for(Type intefas : interfaces){//a class may implement more than one iterable
+					ParameterizedType parameterizedType = (ParameterizedType) intefas;
+					if("java.lang.Iterable".equals(parameterizedType.getRawType().getTypeName())){
+						elementType = parameterizedType.getActualTypeArguments()[0];
+						break;
+					}
+				}
+			}
 		}
 		TypeAdapter<?> elementTypeAdapter = gson.getAdapter(TypeToken.get(elementType));
 		@SuppressWarnings("unchecked")//type must agree
@@ -122,7 +134,7 @@ public class IterableTypeAdapterFactory implements TypeAdapterFactory{
 						throw new RuntimeException(e);//wrapped.throws when the constructor throws an exception
 					} catch (NoSuchMethodException e) {
 						throw new RuntimeException(iterableClass.getSimpleName() 
-								+ "has no default constructor");//a default constructor is required to create element instances
+								+ " has no default constructor");//a default constructor is required to create element instances
 					} catch (SecurityException e) {
 						throw new RuntimeException(e);//occurs when using illegal class loader
 					}
