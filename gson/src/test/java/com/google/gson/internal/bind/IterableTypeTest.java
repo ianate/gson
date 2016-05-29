@@ -1,8 +1,10 @@
 package com.google.gson.internal.bind;
 
 import java.lang.reflect.Type;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
@@ -36,20 +38,15 @@ class IterableImpl<E> implements Iterable<E>{
 	@Override
 	public Iterator<E> iterator() {
 		readIndex = 0;
-		// TODO Auto-generated method stub
 		return new Iterator<E>() {
-
-			@Override
-			public boolean hasNext() {
+			@Override public boolean hasNext() {
 				if(readIndex < elements.length && elements[readIndex] != null){
 					return true;
 				}
 				return false;
 			}
-
 			@SuppressWarnings("unchecked")
-			@Override
-			public E next() {
+			@Override public E next() {
 				return (E) elements[readIndex ++];
 			}
 		};
@@ -102,6 +99,28 @@ public class IterableTypeTest extends TestCase{
 			assertEquals(str, newStr);
 			i ++;
 		}
+	}
+	
+	public void testDifference(){//#issue 1
+		if(Collection.class.isAssignableFrom(Exception.class)){
+			;
+		}
+		SQLException se1 = new SQLException("first");
+		SQLException se2 = new SQLException("second");
+		SQLException se3 = new SQLException("third");
+		se1.setNextException(se2);
+		se2.setNextException(se3);
+		String defaultJson = new Gson().toJson(se1);
+		
+		for(Throwable t : se1){
+			System.out.println(t);
+		}
+		
+		Gson gson = new GsonBuilder()
+				.registerTypeAdapterFactory(new IterableTypeAdapterFactory(SQLException.class, "setNextException"))
+				.create();
+		String json = gson.toJson(se1);
+		assertEquals("", defaultJson);
 	}
 	
 }

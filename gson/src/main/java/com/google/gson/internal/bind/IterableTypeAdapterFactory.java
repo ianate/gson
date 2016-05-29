@@ -7,10 +7,12 @@ import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
+import java.util.Collection;
 
 import com.google.gson.Gson;
 import com.google.gson.TypeAdapter;
 import com.google.gson.TypeAdapterFactory;
+import com.google.gson.internal.$Gson$Types;
 import com.google.gson.internal.ObjectConstructor;
 import com.google.gson.internal.bind.TypeAdapterRuntimeTypeWrapper;
 import com.google.gson.reflect.TypeToken;
@@ -66,8 +68,10 @@ public class IterableTypeAdapterFactory implements TypeAdapterFactory{
 		}
 		
 		Type elementType = null;
-		if(Iterable.class.equals(rawType)){
-			Type type = typeToken.getType();
+		Type type = typeToken.getType();
+		if(Collection.class.isAssignableFrom(rawType)){
+			elementType = $Gson$Types.getCollectionElementType(type, rawType);//see CollectionTypeAdapterFactory
+		}else if(Iterable.class.equals(rawType)){
 			if(type instanceof Class){//Class cannot hold parameter(type of the element class) as ParameterizedType do
 				throw new RuntimeException("destinated Type parameter must be an anonymous "
 						+ "com.google.gson.reflect.TypeToken class to avoid runtime erasure ");
@@ -75,16 +79,13 @@ public class IterableTypeAdapterFactory implements TypeAdapterFactory{
 			elementType = 
 					((ParameterizedType) type).getActualTypeArguments()[0];
 		}else{
-			if(!Object.class.equals(rawType.getGenericSuperclass())){
-				elementType = ((ParameterizedType) rawType.getGenericSuperclass()).getActualTypeArguments()[0];
-			}else{//direct Iterable implement
-				Type[] interfaces = rawType.getGenericInterfaces();
-				for(Type intefas : interfaces){//a class may implement more than one iterable
-					ParameterizedType parameterizedType = (ParameterizedType) intefas;
-					if("java.lang.Iterable".equals(parameterizedType.getRawType().getTypeName())){
-						elementType = parameterizedType.getActualTypeArguments()[0];
-						break;
-					}
+			//direct Iterable implement
+			Type[] interfaces = rawType.getGenericInterfaces();
+			for(Type intefas : interfaces){//a class may implement more than one iterable
+				ParameterizedType parameterizedType = (ParameterizedType) intefas;
+				if("java.lang.Iterable".equals(parameterizedType.getRawType().getTypeName())){
+					elementType = parameterizedType.getActualTypeArguments()[0];
+					break;
 				}
 			}
 		}
@@ -106,14 +107,25 @@ public class IterableTypeAdapterFactory implements TypeAdapterFactory{
 			this.elementTypeAdapter = 
 					new TypeAdapterRuntimeTypeWrapper<E>(gsonContext, typeAdapter, elementType);
 
-			try {
-				this.method = iterableClass.getDeclaredMethod(writeMethodName, Object.class);
-			} catch (NoSuchMethodException e1) {
-				throw new RuntimeException();
-			} catch (SecurityException e1) {
+			Method addingMethod = null;
+			try {//TODO:more effective way
+				addingMethod = iterableClass.getDeclaredMethod(writeMethodName, Object.class);
+				//addingMethod = iterableClass.getDeclaredMethod(writeMethodName, (Class<?>)elementType);//cast exception
+			} catch (NoSuchMethodException e) {
+				try {
+					addingMethod = iterableClass.getDeclaredMethod(writeMethodName, Object.class);
+				} catch (Exception e1) {
+					try{
+						addingMethod = iterableClass.getDeclaredMethod(writeMethodName, iterableClass);
+					} catch (Exception e2) {
+						throw new RuntimeException();
+					}
+				}
+			} catch (SecurityException e) {
 				throw new RuntimeException();
 			}
 
+			this.method = addingMethod;
 			this.iterableConstructor = new ObjectConstructor<Iterable<E>>() {
 				@Override
 				public Iterable<E> construct() {
